@@ -19,8 +19,7 @@ function initClient() {
         }),
         puppeteer: {
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         }
     });
 
