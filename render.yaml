@@ -4,8 +4,8 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm install && npx puppeteer browsers install chrome
+    buildCommand: apt-get update && apt-get install -y chromium-browser && npm install
     startCommand: node whatsapp_bot_render.js
     envVars:
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium-browser
