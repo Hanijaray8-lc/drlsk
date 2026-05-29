@@ -32,15 +32,7 @@ function initClient() {
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-extensions',
-                '--disable-background-networking',
-                '--disable-sync',
-                '--metrics-recording-only',
-                '--mute-audio',
-                '--no-first-run',
-                '--no-zygote'
+                '--disable-dev-shm-usage'
             ]
         }
     });
@@ -53,6 +45,9 @@ function initClient() {
 
         status.qr = qr;
         status.ready = false;
+        status.error = null;
+
+        qrcode.generate(qr, { small: true });
     });
 
     client.on('authenticated', () => {
@@ -71,6 +66,7 @@ function initClient() {
 
         status.ready = true;
         status.qr = null;
+        status.error = null;
     });
 
     client.on('auth_failure', (msg) => {
@@ -79,7 +75,7 @@ function initClient() {
         status.error = msg;
     });
 
-    client.on('disconnected', async (reason) => {
+    client.on('disconnected', (reason) => {
         console.log('⚠️ DISCONNECTED:', reason);
 
         isReady = false;
@@ -88,7 +84,10 @@ function initClient() {
         status.qr = null;
     });
 
-    client.initialize();
+    client.initialize().catch((err) => {
+        console.error('❌ INIT ERROR:', err);
+        status.error = err.message;
+    });
 }
 
 // ==============================
