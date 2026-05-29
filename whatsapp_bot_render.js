@@ -28,80 +28,64 @@ function initClient() {
 
         puppeteer: {
             headless: true,
+
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--disable-sync',
+                '--metrics-recording-only',
+                '--mute-audio',
                 '--no-first-run',
                 '--no-zygote'
             ]
         }
     });
 
-    // QR
     client.on('qr', (qr) => {
-        console.log('📱 New QR Code generated');
+        console.log('📱 QR generated');
 
         qrCode = qr;
         isReady = false;
 
         status.qr = qr;
         status.ready = false;
-        status.error = null;
-
-        qrcode.generate(qr, { small: true });
     });
 
-    // Authenticated
     client.on('authenticated', () => {
-        console.log('✅ WhatsApp authenticated');
+        console.log('✅ AUTHENTICATED');
     });
 
-    // Ready
+    client.on('loading_screen', (percent, message) => {
+        console.log(`Loading ${percent}% - ${message}`);
+    });
+
     client.on('ready', () => {
-        console.log('✅ WhatsApp Client Ready');
+        console.log('✅ READY');
 
         isReady = true;
         qrCode = null;
 
         status.ready = true;
         status.qr = null;
-        status.error = null;
     });
 
-    // Auth failure
     client.on('auth_failure', (msg) => {
-        console.error('❌ Auth failed:', msg);
+        console.error('❌ AUTH FAILURE:', msg);
 
-        isReady = false;
-
-        status.ready = false;
         status.error = msg;
     });
 
-    // Disconnected
     client.on('disconnected', async (reason) => {
-        console.log('⚠️ WhatsApp disconnected:', reason);
+        console.log('⚠️ DISCONNECTED:', reason);
 
         isReady = false;
-        qrCode = null;
 
         status.ready = false;
         status.qr = null;
-        status.error = reason;
-
-        try {
-            if (client) {
-                await client.destroy();
-            }
-        } catch (err) {
-            console.error('Destroy error:', err.message);
-        }
-
-        setTimeout(() => {
-            initClient();
-        }, 5000);
     });
 
     client.initialize();
