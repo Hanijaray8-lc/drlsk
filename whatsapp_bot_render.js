@@ -21,23 +21,19 @@ const client = new Client({
         "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html"
 },
 
-    puppeteer: {
-        headless: true,
+   puppeteer: {
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
 
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-default-apps",
-            "--window-size=1280,720"
-        ]
-    }
+    args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-extensions",
+        "--single-process"
+    ]
+}
 });
 
 client.on("loading_screen", (percent, message) => {
@@ -74,7 +70,11 @@ client.on("disconnected", reason => {
     status = "DISCONNECTED";
     isReady = false;
 });
-
+client.on("error", err => {
+    console.log("CLIENT ERROR:", err);
+    status = "ERROR: " + err.message;
+});
+console.log("Initializing WhatsApp...");
 client.initialize();
 
 function renderPage() {
