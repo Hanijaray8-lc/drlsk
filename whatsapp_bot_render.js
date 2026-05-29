@@ -15,8 +15,13 @@ const client = new Client({
         dataPath: "./.wwebjs_auth"
     }),
 
+    webVersionCache: {
+        type: "remote"
+    },
+
     puppeteer: {
         headless: true,
+
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
 
         args: [
@@ -24,7 +29,11 @@ const client = new Client({
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--disable-extensions"
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-default-apps",
+            "--window-size=1280,720"
         ]
     }
 });
