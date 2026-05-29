@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Message Sender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .status-badge {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .status-badge.ready {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-badge.not-ready {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="tel"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="tel"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .response {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .response.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .response.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .response.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .queue-status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .queue-status div {
+            margin: 5px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .badge.sending {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .badge.queued {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: loading 1.4s infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes loading {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .api-note {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f7ff;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .api-note strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 WhatsApp Message Sender</h1>
+        <div class="status-badge" id="statusBadge">
+            Checking connection...
+        </div>
+
+        <form id="messageForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" placeholder="91XXXXXXXXXX or +91XXXXXXXXXX" required>
+                </div>
+                <div class="form-group">
+                    <label for="recipientName">Recipient Name (Optional)</label>
+                    <input type="text" id="recipientName" placeholder="John Doe">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="message">Message</label>
+                <textarea id="message" placeholder="Type your message here..." required></textarea>
+            </div>
+
+            <button type="button" onclick="sendSingleMessage()" id="sendBtn">📤 Send Message</button>
+            <button type="button" onclick="checkQueueStatus()" id="queueBtn">📊 Check Queue</button>
+
+            <div class="response" id="response"></div>
+            <div class="queue-status" id="queueStatus"></div>
+        </form>
+
+        <div class="api-note">
+            <strong>📡 API Reference:</strong>
+            <div>POST <code>/send</code> - Send messages</div>
+            <div>GET <code>/status</code> - Check bot status</div>
+            <div>GET <code>/queue-status</code> - Check message queue</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let botReady = false;
+
+        async function checkBotStatus() {
+            try {
+                const response = await fetch(`${API_URL}/status`);
+                const data = await response.json();
+                
+                botReady = data.ready;
+                const badge = document.getElementById('statusBadge');
+                
+                if (botReady) {
+                    badge.className = 'status-badge ready';
+                    badge.innerHTML = '✅ WhatsApp Bot Connected & Ready';
+                    document.getElementById('sendBtn').disabled = false;
+                } else {
+                    badge.className = 'status-badge not-ready';
+                    badge.innerHTML = `⏳ Bot Status: ${data.status || 'Loading...'}`;
+                    document.getElementById('sendBtn').disabled = true;
+                }
+
+                // Auto-refresh status every 3 seconds
+                setTimeout(checkBotStatus, 3000);
+            } catch (error) {
+                document.getElementById('statusBadge').className = 'status-badge not-ready';
+                document.getElementById('statusBadge').innerHTML = '❌ Cannot reach bot - Check connection';
+                document.getElementById('sendBtn').disabled = true;
+            }
+        }
+
+        async function sendSingleMessage() {
+            const phone = document.getElementById('phone').value.trim();
+            const message = document.getElementById('message').value.trim();
+
+            if (!phone) {
+                showResponse('Phone number is required', 'error');
+                return;
+            }
+
+            if (!message) {
+                showResponse('Message is required', 'error');
+                return;
+            }
+
+            // Normalize phone number
+            let normalizedPhone = phone.replace(/[\s\-+]/g, '');
+            if (normalizedPhone.startsWith('0')) {
+                normalizedPhone = normalizedPhone.substring(1);
+            }
+            if (!normalizedPhone.startsWith('91')) {
+                normalizedPhone = '91' + normalizedPhone;
+            }
+
+            const btn = document.getElementById('sendBtn');
+            btn.disabled = true;
+            btn.innerHTML = '📤 Sending...<span class="loading"></span>';
+
+            try {
+                const response = await fetch(`${API_URL}/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{
+                            phone: normalizedPhone,
+                            message: message
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResponse(`✅ Message queued! Queue size: ${data.queued}`, 'success');
+                    document.getElementById('message').value = '';
+                } else {
+                    showResponse(`❌ ${data.message || 'Failed to send message'}`, 'error');
+                }
+            } catch (error) {
+                showResponse(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '📤 Send Message';
+            }
+        }
+
+        async function checkQueueStatus() {
+            try {
+                const response = await fetch(`${API_URL}/queue-status`);
+                const data = await response.json();
+
+                let statusHtml = '<strong>📊 Queue Status</strong><div>';
+                statusHtml += `Total Queued: <strong>${data.totalQueued}</strong>`;
+                statusHtml += `<span class="badge ${data.isSending ? 'sending' : ''}">${data.isSending ? 'SENDING' : 'IDLE'}</span><br>`;
+                statusHtml += `<br>Pending Messages:<br>`;
+
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.slice(0, 5).forEach((msg, idx) => {
+                        const status = msg.status === 'sent' ? '✅' : msg.status === 'queued' ? '⏳' : '❌';
+                        statusHtml += `${status} ${msg.phone} - ${msg.status}<br>`;
+                    });
+                    if (data.messages.length > 5) {
+                        statusHtml += `... and ${data.messages.length - 5} more`;
+                    }
+                } else {
+                    statusHtml += 'No pending messages';
+                }
+                statusHtml += '</div>';
+
+                document.getElementById('queueStatus').innerHTML = statusHtml;
+            } catch (error) {
+                showResponse(`❌ Cannot fetch queue status: ${error.message}`, 'error');
+            }
+        }
+
+        function showResponse(message, type) {
+            const respDiv = document.getElementById('response');
+            respDiv.textContent = message;
+            respDiv.className = `response ${type}`;
+        }
+
+        // Check status on page load
+        window.addEventListener('load', checkBotStatus);
+    </script>
+</body>
+</html>

@@ -1,310 +1,273 @@
-const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const puppeteer = require('puppeteer');
+const express = require("express");
+const { Client, LocalAuth } = require("whatsapp-web.js");
+const QRCode = require("qrcode");
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-let client = null;
-let qrCode = null;
+let qrCodeData = null;
 let isReady = false;
+let status = "Starting...";
+let messageQueue = [];
+let isSending = false;
 
-let status = {
-    ready: false,
-    qr: null
-};
+const client = new Client({
+    authStrategy: new LocalAuth({
+        clientId: "render-bot",
+        dataPath: "./.wwebjs_auth"
+    }),
 
-// Initialize WhatsApp client
-function initClient() {
-    client = new Client({
-        authStrategy: new LocalAuth({
-            dataPath: './whatsapp_session'
-        }),
+   webVersionCache: {
+    type: "remote",
+    remotePath:
+        "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html"
+},
 
-        puppeteer: {
-            headless: true,
-            executablePath: puppeteer.executablePath(),
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--no-first-run',
-                '--no-zygote',
-                '--single-process'
-            ]
+   puppeteer: {
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+
+    args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--disable-extensions",
+        "--single-process"
+    ]
+}
+});
+
+client.on("loading_screen", (percent, message) => {
+    console.log(`Loading ${percent}% - ${message}`);
+    status = `Loading ${percent}%`;
+});
+
+client.on("qr", async (qr) => {
+    console.log("QR RECEIVED");
+    status = "QR RECEIVED";
+    qrCodeData = await QRCode.toDataURL(qr);
+    isReady = false;
+});
+
+client.on("authenticated", () => {
+    console.log("AUTHENTICATED");
+    status = "AUTHENTICATED";
+});
+
+client.on("ready", () => {
+    console.log("READY");
+    status = "READY";
+    qrCodeData = null;
+    isReady = true;
+});
+
+client.on("auth_failure", msg => {
+    console.log("AUTH FAILURE:", msg);
+    status = "AUTH FAILURE";
+});
+
+client.on("disconnected", reason => {
+    console.log("DISCONNECTED:", reason);
+    status = "DISCONNECTED";
+    isReady = false;
+});
+client.on("error", err => {
+    console.log("CLIENT ERROR:", err);
+    status = "ERROR: " + err.message;
+});
+console.log("Initializing WhatsApp...");
+client.initialize();
+
+// ==================== MESSAGE QUEUE HANDLER ====================
+async function processMessageQueue() {
+    if (isSending || messageQueue.length === 0 || !isReady) {
+        return;
+    }
+
+    isSending = true;
+
+    while (messageQueue.length > 0) {
+        const msgObj = messageQueue.shift();
+        try {
+            // Add delay between messages (500ms) to avoid rate limiting
+            await new Promise(r => setTimeout(r, 500));
+            
+            const phoneNumber = msgObj.phone.includes('@c.us') 
+                ? msgObj.phone 
+                : msgObj.phone + '@c.us';
+            
+            await client.sendMessage(phoneNumber, msgObj.message);
+            console.log(`✅ Message sent to ${msgObj.phone}`);
+            msgObj.status = 'sent';
+        } catch (error) {
+            console.error(`❌ Failed to send to ${msgObj.phone}:`, error.message);
+            msgObj.status = 'failed';
+            msgObj.error = error.message;
         }
-    });
+    }
 
-    client.on('qr', (qr) => {
-        console.log('New QR Code generated');
-
-        qrCode = qr;
-        isReady = false;
-
-        status.qr = qr;
-        status.ready = false;
-
-        qrcode.generate(qr, { small: true });
-    });
-
-    client.on('ready', () => {
-        console.log('WhatsApp Client Ready!');
-
-        isReady = true;
-        qrCode = null;
-
-        status.ready = true;
-        status.qr = null;
-    });
-
-    client.on('auth_failure', (msg) => {
-        console.error('Auth failed:', msg);
-
-        isReady = false;
-        status.ready = false;
-        status.error = msg;
-    });
-
-    client.on('disconnected', (reason) => {
-        console.log('WhatsApp disconnected:', reason);
-
-        isReady = false;
-        status.ready = false;
-
-        setTimeout(() => {
-            console.log('Re-initializing client...');
-            initClient();
-        }, 5000);
-    });
-
-    client.initialize();
+    isSending = false;
 }
 
-// Health check
-app.get('/health', (req, res) => {
+// Process queue every 100ms when bot is ready
+setInterval(processMessageQueue, 100);
+// ================================================================
+
+function renderPage() {
+    if (isReady) {
+        return `
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f5f5f5; }
+                .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .status { font-size: 18px; color: #27ae60; font-weight: bold; }
+                .queue-info { margin-top: 20px; padding: 15px; background: #ecf0f1; border-radius: 5px; }
+                .queue-count { font-size: 16px; margin: 10px 0; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✅ WhatsApp Connected</h1>
+                <p class="status">Bot running on Render</p>
+                <div class="queue-info">
+                    <h3>Queue Status</h3>
+                    <div class="queue-count">📤 Queued Messages: <strong>${messageQueue.length}</strong></div>
+                    <div class="queue-count">📨 Sending: <strong>${isSending ? 'YES' : 'No'}</strong></div>
+                </div>
+            </div>
+        </body>
+        </html>`;
+    }
+
+    if (qrCodeData) {
+        return `
+        <html>
+        <head>
+        <meta http-equiv="refresh" content="5">
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 30px; background: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .status { color: #e74c3c; font-weight: bold; }
+            img { border: 2px solid #3498db; border-radius: 5px; }
+        </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📱 WhatsApp Bot</h1>
+                <p class="status">Status: ${status}</p>
+                <p>Scan with WhatsApp → Linked Devices</p>
+                <img src="${qrCodeData}" width="300"/>
+            </div>
+        </body>
+        </html>`;
+    }
+
+    return `
+    <html>
+    <head>
+    <meta http-equiv="refresh" content="5">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { color: #3498db; }
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>⏳ ${status}</h2>
+        </div>
+    </body>
+    </html>`;
+}
+
+app.get("/", (req, res) => {
+    res.send(renderPage());
+});
+
+app.get("/qr-page", (req, res) => {
+    res.send(renderPage());
+});
+
+app.get("/status", (req, res) => {
     res.json({
-        status: 'ok',
         ready: isReady,
-        timestamp: new Date().toISOString()
+        status: status,
+        queueLength: messageQueue.length,
+        isSending: isSending
     });
 });
 
-// Bulk send
-app.post('/api/send-bulk', async (req, res) => {
+// ==================== SEND MESSAGE ENDPOINT ====================
+app.post("/send", async (req, res) => {
+    // Check if bot is ready
+    if (!isReady) {
+        return res.status(503).json({
+            success: false,
+            message: "WhatsApp bot is not ready. Please scan QR code first.",
+            queued: 0
+        });
+    }
+
     const { messages } = req.body;
 
-    if (!isReady) {
-        return res.json({
+    if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({
             success: false,
-            message: 'Bot not ready. Visit /qr-page to scan QR code first.'
+            message: "Invalid request. Expected 'messages' array."
         });
     }
 
-    const results = [];
-    let sent = 0;
-    let failed = 0;
+    if (messages.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "No messages provided."
+        });
+    }
 
+    // Add messages to queue
+    const addedMessages = [];
     for (const msg of messages) {
-        try {
-            const chatId = `${msg.phone}@c.us`;
-
-            await client.sendMessage(chatId, msg.message);
-
-            sent++;
-
-            results.push({
+        if (msg.phone && msg.message) {
+            const msgObj = {
+                id: Date.now() + Math.random(),
                 phone: msg.phone,
-                status: 'sent',
-                name: msg.name
-            });
-
-            console.log(`✅ Sent to ${msg.name} (${msg.phone})`);
-        } catch (error) {
-            failed++;
-
-            results.push({
-                phone: msg.phone,
-                status: 'failed',
-                error: error.message,
-                name: msg.name
-            });
-
-            console.error(
-                `❌ Failed to send to ${msg.name} (${msg.phone}):`,
-                error.message
-            );
+                message: msg.message,
+                status: 'queued',
+                addedAt: new Date()
+            };
+            messageQueue.push(msgObj);
+            addedMessages.push(msgObj);
+            console.log(`📝 Message queued for ${msg.phone}`);
         }
-
-        await new Promise((r) => setTimeout(r, 3000));
     }
 
-    res.json({
+    // Trigger queue processing immediately
+    setTimeout(processMessageQueue, 50);
+
+    res.status(200).json({
         success: true,
-        sent,
-        failed,
-        total: messages.length,
-        results
+        queued: addedMessages.length,
+        message: `${addedMessages.length} message(s) queued for sending`,
+        messages: addedMessages
     });
 });
 
-// Campaign send
-app.post('/send', async (req, res) => {
-    const { patients, message } = req.body;
-
-    if (!isReady || !client) {
-        return res.json({
-            success: false,
-            message: 'WhatsApp not ready. Scan QR first.',
-            sent: 0,
-            failed: 0
-        });
-    }
-
-    if (!patients || !message) {
-        return res.json({
-            success: false,
-            message: 'Invalid request format',
-            sent: 0,
-            failed: 0
-        });
-    }
-
-    let sent = 0;
-    let failed = 0;
-    const details = [];
-
-    for (const patient of patients) {
-        try {
-            const chatId = `${patient.phone}@c.us`;
-
-            const finalMessage = message.replace(
-                '{name}',
-                patient.name
-            );
-
-            await client.sendMessage(chatId, finalMessage);
-
-            sent++;
-
-            details.push({
-                name: patient.name,
-                phone: patient.phone,
-                status: 'sent'
-            });
-
-            console.log(
-                `✅ Sent to ${patient.name} (${patient.phone})`
-            );
-        } catch (error) {
-            failed++;
-
-            details.push({
-                name: patient.name,
-                phone: patient.phone,
-                status: 'failed',
-                error: error.message
-            });
-
-            console.error(
-                `❌ Failed to send to ${patient.name} (${patient.phone})`,
-                error.message
-            );
-        }
-
-        await new Promise((r) => setTimeout(r, 3000));
-    }
-
+// ==================== GET QUEUE STATUS ====================
+app.get("/queue-status", (req, res) => {
     res.json({
-        sent,
-        failed,
-        total: patients.length,
-        details
+        totalQueued: messageQueue.length,
+        isSending: isSending,
+        messages: messageQueue
     });
 });
-
-// Status
-app.get('/status', (req, res) => {
-    res.json(status);
-});
-
-// QR JSON
-app.get('/qr', (req, res) => {
-    if (qrCode) {
-        return res.json({
-            qr: qrCode,
-            ready: false,
-            message: 'Scan QR code with WhatsApp'
-        });
-    }
-
-    if (isReady) {
-        return res.json({
-            ready: true,
-            message: 'Already connected',
-            qr: null
-        });
-    }
-
-    res.json({
-        ready: false,
-        message: 'Waiting for QR...',
-        qr: null
-    });
-});
-
-// QR page
-app.get('/qr-page', (req, res) => {
-    if (qrCode) {
-        res.send(`
-            <html>
-            <body style="font-family:Arial;text-align:center;padding:40px;">
-                <h1>📱 WhatsApp Bot</h1>
-                <p>Scan this QR code</p>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrCode)}">
-                <br><br>
-                <button onclick="location.reload()">Refresh</button>
-            </body>
-            </html>
-        `);
-    } else if (isReady) {
-        res.send(`
-            <html>
-            <body style="font-family:Arial;text-align:center;padding:40px;">
-                <h1>✅ WhatsApp Connected!</h1>
-                <p>Bot is ready.</p>
-            </body>
-            </html>
-        `);
-    } else {
-        res.send(`
-            <html>
-            <body style="font-family:Arial;text-align:center;padding:40px;">
-                <h2>🔄 Loading WhatsApp Bot...</h2>
-                <script>
-                    setTimeout(() => location.reload(), 10000);
-                </script>
-            </body>
-            </html>
-        `);
-    }
-});
-
-// Root redirect
-app.get('/', (req, res) => {
-    res.redirect('/qr-page');
-});
-
-// Start
-const PORT = process.env.PORT || 3000;
+// ===========================================================
 
 app.listen(PORT, () => {
-    console.log('========================================');
-    console.log('✅ WhatsApp Bot API server running');
-    console.log(`📡 Port: ${PORT}`);
-    console.log(`📱 QR Page: http://localhost:${PORT}/qr-page`);
-    console.log('========================================');
-
-    initClient();
+    console.log("Server running on port " + PORT);
 });
