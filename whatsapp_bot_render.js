@@ -53,7 +53,7 @@ client.on("disconnected", reason => {
 
 client.initialize();
 
-app.get("/", (req, res) => {
+app.get("/qr-page", (req, res) => {
     if (isReady) {
         return res.send(`
             <h1>✅ WhatsApp Connected</h1>
@@ -77,6 +77,8 @@ app.get("/", (req, res) => {
 
     res.send("<h2>Loading WhatsApp...</h2>");
 });
+
+
 
 app.listen(PORT, () => {
     console.log("Server running on port " + PORT);
