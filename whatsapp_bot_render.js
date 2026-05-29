@@ -17,18 +17,21 @@ const client = new Client({
 
     puppeteer: {
         headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--disable-gpu"
+            "--disable-gpu",
+            "--disable-extensions"
         ]
     }
 });
 
 client.on("loading_screen", (percent, message) => {
     console.log(`Loading ${percent}% - ${message}`);
-    status = `Loading ${percent}% - ${message}`;
+    status = `Loading ${percent}%`;
 });
 
 client.on("qr", async (qr) => {
@@ -52,12 +55,12 @@ client.on("ready", () => {
 
 client.on("auth_failure", msg => {
     console.log("AUTH FAILURE:", msg);
-    status = "AUTH FAILURE: " + msg;
+    status = "AUTH FAILURE";
 });
 
 client.on("disconnected", reason => {
     console.log("DISCONNECTED:", reason);
-    status = "DISCONNECTED: " + reason;
+    status = "DISCONNECTED";
     isReady = false;
 });
 
@@ -69,7 +72,7 @@ function renderPage() {
         <html>
         <body style="font-family:Arial;text-align:center;padding:40px;">
             <h1>✅ WhatsApp Connected</h1>
-            <p>Bot is running on Render.</p>
+            <p>Bot running on Render</p>
         </body>
         </html>`;
     }
@@ -84,9 +87,7 @@ function renderPage() {
             <h1>📱 WhatsApp Bot</h1>
             <p>Status: ${status}</p>
             <p>Scan with WhatsApp → Linked Devices</p>
-            <img src="${qrCodeData}" width="300" />
-            <br><br>
-            <button onclick="location.reload()">Refresh</button>
+            <img src="${qrCodeData}" width="300"/>
         </body>
         </html>`;
     }
@@ -96,7 +97,7 @@ function renderPage() {
     <head>
     <meta http-equiv="refresh" content="5">
     </head>
-    <body style="font-family:Arial;text-align:center;padding:40px;">
+    <body style="font-family:Arial;text-align:center;">
         <h2>${status}</h2>
     </body>
     </html>`;
@@ -108,6 +109,13 @@ app.get("/", (req, res) => {
 
 app.get("/qr-page", (req, res) => {
     res.send(renderPage());
+});
+
+app.get("/status", (req, res) => {
+    res.json({
+        ready: isReady,
+        status: status
+    });
 });
 
 app.listen(PORT, () => {
