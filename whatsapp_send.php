@@ -8,7 +8,7 @@ ini_set('display_errors', 0);
 // ==================== CONFIGURATION ====================
 // REPLACE THIS WITH YOUR RENDER.COM URL AFTER DEPLOYMENT
 // Example: https://whatsapp-bot.onrender.com
-$RENDER_API_URL = 'https://drlsk.onrender.com';
+$RENDER_API_URL = 'https://drlsk-wv9j.onrender.com';
 // =======================================================
 
 function sendResponse($data) {

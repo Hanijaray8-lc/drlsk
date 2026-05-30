@@ -13,22 +13,14 @@ let status = { ready: false, qr: null };
 
 // Initialize WhatsApp client
 function initClient() {
-    // Get the path to puppeteer's bundled chromium
-    const puppeteerPath = require('puppeteer').executablePath();
-    
     client = new Client({
         authStrategy: new LocalAuth({
             dataPath: './whatsapp_session'
         }),
         puppeteer: {
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ],
-            executablePath: puppeteerPath
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
         }
     });
 

@@ -1728,7 +1728,7 @@ async function startAutoSend() {
 function showQRInstruction() {
     // Create a modal or alert showing how to get QR
     if (confirm('WhatsApp bot not ready. Would you like to view the QR code to connect WhatsApp?')) {
-       window.open('https://drlsk.onrender.com/status', '_blank');
+       window.open('https://drlsk-wv9j.onrender.com/status', '_blank');
     }
 }
 
