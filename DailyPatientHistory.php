@@ -1728,7 +1728,7 @@ async function startAutoSend() {
 function showQRInstruction() {
     // Create a modal or alert showing how to get QR
     if (confirm('WhatsApp bot not ready. Would you like to view the QR code to connect WhatsApp?')) {
-       window.open('https://drlsk-wv9j.onrender.com/status', '_blank');
+       window.open('https://drlsk.onrender.com/status', '_blank');
     }
 }
 
@@ -1969,7 +1969,7 @@ function showAutoSendSection() {
                                 ${request.age || ''} years, ${request.gender || ''} · 
                                 MRN: ${request.mrn || 'N/A'}
                             </p>
-                        <p class="text-muted small mb-1">
+                          <p class="text-muted small mb-1">
     <i class="fas fa-user-md me-1"></i>Requested by: Dr. L. Senthilkumar MBBS., ACCID., ACMDC
 </p>
                         </div>
